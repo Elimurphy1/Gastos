@@ -1,90 +1,129 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Linq;
 
-namespace ConsoleApp6
+namespace ProyectoFinanzas
 {
     internal class Gestor
     {
-
-        List<Productos> Producto = new List<Productos>();
-        List<Productos> Tarjeta = new List<Productos>();
-
-        public void AgregarIngreso(double Ingreso)
+        public List<Gasto> Gastos { get; set; } = new List<Gasto>();
+        public List<Ingreso> Ingresos { get; set; } = new List<Ingreso>();
+        public List<Categoria> Categorias { get; set; } = new List<Categoria>();
+        public List<TarjetaCredito> Tarjetas { get; set; } = new List<TarjetaCredito>();
+        public List<Usuario> Usuarios { get; set; } = new List<Usuario>(); 
+        public void AgregarIngreso(Ingreso nuevoIngreso)
         {
-            Productos ingreso = new Productos();
-
-            ingreso.Ingreso = Ingreso;
-
-            Producto.Add(ingreso);            
-
+            Ingresos.Add(nuevoIngreso);
+            Console.WriteLine($"\n[+] Ingreso '{nuevoIngreso.Descripcion}' de ${nuevoIngreso.Monto} agregado exitosamente.");
         }
-        public void AgregarGasto(double Gasto)
+
+        public void AgregarGasto(Gasto nuevoGasto)
         {
-            Productos gasto = new Productos();
-
-            gasto.Gasto = Gasto;
-
-            Producto.Add(gasto);
+            Gastos.Add(nuevoGasto);
+            Console.WriteLine($"\n[-] Gasto '{nuevoGasto.Descripcion}' de ${nuevoGasto.Monto} agregado exitosamente.");
         }
-        public void AgregarTarjeta(String Tarjeta)
+
+        public void VerResumen()
         {
-            Productos tarjeta = new Productos();
-            tarjeta.Tarjeta = Tarjeta;
-            Producto.Add(tarjeta);
+            Console.WriteLine("\n--- RESUMEN FINANCIERO AL " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " ---");
+            double totalIngresos = Ingresos.Sum(i => i.Monto);
+            double totalGastos = Gastos.Sum(g => g.Monto);
+            double saldo = totalIngresos - totalGastos;
+
+            Console.WriteLine($"Total Ingresos: ${totalIngresos}");
+            Console.WriteLine($"Total Gastos:   ${totalGastos}");
+            Console.WriteLine($"Saldo Líquido:  ${saldo}");
+            Console.WriteLine("------------------------------------------");
         }
-        public void VerGastos()
+
+        public void VerMovimientosDetallados()
         {
+            Console.WriteLine("\n--- HISTORIAL DETALLADO ---");
 
-            Productos totalGastos = new Productos();
-
-            double total = 0;
-
-            foreach(Productos g in Producto)
+            Console.WriteLine("\nINGRESOS:");
+            if (Ingresos.Count == 0) Console.WriteLine("No hay ingresos registrados.");
+            foreach (var ing in Ingresos)
             {
-                total += g.Gasto;
+                string cat = ing.Categoria != null ? ing.Categoria.Nombre : "Sin categoría";
+                Console.WriteLine($"{ing.FechaHora.ToString("dd/MM/yy HH:mm")} | {ing.Descripcion} | +${ing.Monto} | Rubro: {cat}");
             }
 
-            Console.WriteLine("El valor total de los gastos es: " + total + "\n");
-
+            Console.WriteLine("\nGASTOS:");
+            if (Gastos.Count == 0) Console.WriteLine("No hay gastos registrados.");
+            foreach (var gasto in Gastos)
+            {
+                string tarjeta = gasto.TarjetaCredito != null ? $"{gasto.TarjetaCredito.Nombre} {gasto.TarjetaCredito.Banco}" : "Efectivo/Débito";
+                string cat = gasto.Categoria != null ? gasto.Categoria.Nombre : "Sin categoría";
+                Console.WriteLine($"{gasto.FechaHora.ToString("dd/MM/yy HH:mm")} | {gasto.Descripcion} | -${gasto.Monto} | Rubro: {cat} | Pago: {tarjeta} (Cuotas: {gasto.Cuotas})");
+            }
         }
 
-        public void DineroRestante()
+        // --- NUEVA FUNCIONALIDAD 1: REPORTES ---
+        public void GenerarReportePorCategoria()
         {
-            Productos dineroRestante = new Productos();
-
-            double totalGasto = 0;
-            double totalDinero = 0;
-            foreach (Productos g in Producto)
+            Console.WriteLine("\n--- REPORTE DE GASTOS POR CATEGORÍA ---");
+            if (Gastos.Count == 0)
             {
-                totalGasto += g.Gasto;
-                totalDinero += g.Ingreso;
+                Console.WriteLine("No hay gastos registrados para analizar.");
+                return;
             }
 
-            double dineroRes = totalDinero - totalGasto;
+            var reporte = Gastos
+                .Where(g => g.Categoria != null)
+                .GroupBy(g => g.Categoria.Nombre)
+                .Select(grupo => new
+                {
+                    Categoria = grupo.Key,
+                    TotalGastado = grupo.Sum(g => g.Monto)
+                })
+                .OrderByDescending(r => r.TotalGastado);
 
-            Console.WriteLine("El dinero restante es: " + dineroRes);
-
+            foreach (var item in reporte)
+            {
+                Console.WriteLine($"- {item.Categoria}: ${item.TotalGastado:F2}");
+            }
+            Console.WriteLine("---------------------------------------");
         }
 
-        public void UsaTarjeta(double Gasto)
+        // --- NUEVA FUNCIONALIDAD 2: PROYECCIÓN DE TARJETA ---
+        public void ProyectarResumenTarjeta(int idTarjeta)
         {
-            Productos tarjeta = new Productos();
+            var tarjeta = Tarjetas.FirstOrDefault(t => t.Id == idTarjeta);
+            if (tarjeta == null)
+            {
+                Console.WriteLine("Tarjeta no encontrada.");
+                return;
+            }
 
-            tarjeta.Gasto= Gasto;
+            Console.WriteLine($"\n--- PROYECCIÓN RESUMEN: {tarjeta.Nombre} {tarjeta.Banco} ---");
+            Console.WriteLine($"Cierra el día {tarjeta.DiaCierre} | Vence el día {tarjeta.DiaVencimiento}");
 
-            Producto.Add(tarjeta);
+            var gastosTarjeta = Gastos.Where(g => g.TarjetaCreditoId == idTarjeta).ToList();
 
+            if (gastosTarjeta.Count == 0)
+            {
+                Console.WriteLine("No hay consumos registrados en esta tarjeta.");
+                return;
+            }
+
+            double totalProximoResumen = 0;
+            double deudaTotal = 0;
+
+            Console.WriteLine("\nDetalle de consumos a pagar este mes:");
+            foreach (var gasto in gastosTarjeta)
+            {
+                double valorCuota = gasto.Monto / gasto.Cuotas;
+                totalProximoResumen += valorCuota;
+                deudaTotal += gasto.Monto;
+
+                Console.WriteLine($"> {gasto.FechaHora:dd/MM} | {gasto.Descripcion} | Total: ${gasto.Monto} | Cuota a pagar: ${valorCuota:F2} (de {gasto.Cuotas} cuotas)");
+            }
+
+            double disponible = tarjeta.LimiteCredito - deudaTotal;
+
+            Console.WriteLine("------------------------------------------------");
+            Console.WriteLine($"TOTAL ESTIMADO PRÓXIMO RESUMEN: ${totalProximoResumen:F2}");
+            Console.WriteLine($"Límite disponible para compras: ${disponible:F2} (de ${tarjeta.LimiteCredito})");
         }
-
-        public void CuotasTarjeta(double Cuotas)
-        {
-            Productos tarjeta = new Productos();
-
-        }
-
-
-
-
     }
 }

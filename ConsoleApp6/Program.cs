@@ -1,109 +1,144 @@
-﻿namespace ConsoleApp6
+﻿using System;
+using System.Linq;
+
+namespace ProyectoFinanzas
 {
     internal class Program
     {
         static void Main(string[] args)
         {
+            Gestor miGestor = new Gestor();
+            bool salir = false;
+
+            Console.WriteLine("Ingrese nombre de usuario: ");
+            string NombreUsuario = Console.ReadLine(); 
             
-
-            Console.WriteLine("Menú\n");
-
-            Console.WriteLine("Ingrese nombre del usuario: ");
-
-            String Nombre = Console.ReadLine();           
-
-            Gestor miOperatoria = new Gestor();
-
-            String Opcion;
-
-            do
+            var usuarioActual = miGestor.Usuarios.FirstOrDefault(u => u.Nombre == NombreUsuario);
+            if(usuarioActual != null)
             {
-                Console.WriteLine("Hola " + Nombre + ", que operatoria necesita realizar?\n");
-                Console.WriteLine("1. Agregar Ingreso");
-                Console.WriteLine("2. Agregar Gasto");
-                Console.WriteLine("3. Agregar Tarjeta");
-                Console.WriteLine("4. Ver todos los gastos");
-                Console.WriteLine("5. Ver cuotas restantes");
-                Console.WriteLine("6. Ver dinero restante");
-                Console.WriteLine("7. Cuanto va gastado de tarjeta");
-                Console.WriteLine("8. Salir");
-                Console.WriteLine("Seleccione una opcion: ");
-                Opcion = Console.ReadLine();
+                Console.WriteLine($"¡Bienvenido de nuevo, {usuarioActual.Nombre}!");
+            }
+            else
+            {
+                // 1. Instanciamos el usuario y lo guardamos en la variable
+                usuarioActual = new Usuario { Id = miGestor.Usuarios.Count + 1, Nombre = NombreUsuario, Email = "eliasisa33@gmail.com" };
 
-                switch (Opcion) 
+                // 2. Agregamos ESE usuario a la lista
+                miGestor.Usuarios.Add(usuarioActual);
+
+                Console.WriteLine($"\nUsuario nuevo creado. ¡Bienvenido, {usuarioActual.Nombre}!");
+            }
+
+            while (!salir)
+            {
+                Console.WriteLine("\n=== CONTROL DE FINANZAS PRO ===");
+                Console.WriteLine("1. Registrar Ingreso");
+                Console.WriteLine("2. Registrar Gasto");
+                Console.WriteLine("3. Ver Resumen General");
+                Console.WriteLine("4. Ver Movimientos Detallados");
+                Console.WriteLine("5. Reporte de Gastos por Categoría");
+                Console.WriteLine("6. Proyectar Resumen de Tarjeta");
+                Console.WriteLine("7. Salir");
+                Console.Write("Seleccione una opción: ");
+
+                string opcion = Console.ReadLine() ?? "";
+
+                switch (opcion)
                 {
                     case "1":
-                        Console.WriteLine("\nEscriba el ingreso en pesos argentinos: $ ");
-                        String Ingreso = Console.ReadLine();
-                        double IngresoUsuario;
-                        while(!double.TryParse(Ingreso , out IngresoUsuario))
+                        Console.Write("Descripción (ej. Honorarios): ");
+                        string descIngreso = Console.ReadLine() ?? "Ingreso";
+                        Console.Write("Monto: $");
+                        double.TryParse(Console.ReadLine(), out double montoIngreso);
+
+                        Console.WriteLine("Categorías de Ingreso:");
+                        var catIngresos = miGestor.Categorias.Where(c => c.TipoOperacion == "Ingreso").ToList();
+                        foreach (var cat in catIngresos) Console.WriteLine($"{cat.Id}. {cat.Nombre}");
+                        Console.Write("ID Categoría: ");
+                        int.TryParse(Console.ReadLine(), out int idCatIngreso);
+
+                        miGestor.AgregarIngreso(new Ingreso
                         {
-                            Console.WriteLine("Numero invalido, por favor escriba el ingreso en precios argentinos: $");
-                            Ingreso = Console.ReadLine();
-                        }
-                        //Agregar Ingreso
-                        miOperatoria.AgregarIngreso(IngresoUsuario);
-                        Console.WriteLine("Ingreso agregado con exito\n");
+                            UsuarioId = usuarioActual.Id,
+                            Descripcion = descIngreso,
+                            Monto = montoIngreso,
+                            FechaHora = DateTime.Now,
+                            CategoriaId = idCatIngreso,
+                            Categoria = catIngresos.FirstOrDefault(c => c.Id == idCatIngreso)!
+                        });
                         break;
+
                     case "2":
-                        Console.WriteLine("\nIngrese el gasto: ");
-                        String Gasto = Console.ReadLine();
-                        double GastoUsuario;
-                        while(!double.TryParse(Gasto ,out GastoUsuario))
+                        Console.Write("Descripción (ej. Nafta): ");
+                        string descGasto = Console.ReadLine() ?? "Gasto";
+                        Console.Write("Monto: $");
+                        double.TryParse(Console.ReadLine(), out double montoGasto);
+
+                        Console.WriteLine("Categorías de Gasto:");
+                        var catGastos = miGestor.Categorias.Where(c => c.TipoOperacion == "Gasto").ToList();
+                        foreach (var cat in catGastos) Console.WriteLine($"{cat.Id}. {cat.Nombre}");
+                        Console.Write("ID Categoría: ");
+                        int.TryParse(Console.ReadLine(), out int idCatGasto);
+
+                        Console.WriteLine("Medio de pago (0 para Efectivo/Débito):");
+                        foreach (var t in miGestor.Tarjetas) Console.WriteLine($"{t.Id}. {t.Nombre} {t.Banco}");
+                        Console.Write("ID Medio de pago: ");
+                        int.TryParse(Console.ReadLine(), out int idTarjeta);
+                        var tarjetaSel = miGestor.Tarjetas.FirstOrDefault(t => t.Id == idTarjeta);
+
+                        int cuotas = 1;
+                        if (tarjetaSel != null)
                         {
-                            Console.WriteLine("Numero invalido, por favor escriba el gasto nuevamente: ");
-                            Gasto = Console.ReadLine();
+                            Console.Write("Cantidad de cuotas: ");
+                            int.TryParse(Console.ReadLine(), out cuotas);
                         }
-                        Console.WriteLine("El gasto es para tarjeta?: ");
-                        String UsaTarjeta = Console.ReadLine();
-                        if (UsaTarjeta == "si")
+
+                        miGestor.AgregarGasto(new Gasto
                         {
-                            miOperatoria.UsaTarjeta(GastoUsuario);
-                        }
-                        Console.WriteLine("Cuantas cuotas?: ");
-                        String Cuotas = Console.ReadLine();
-                        double CuotasUsuario;
-                        while (!double.TryParse(Cuotas, out CuotasUsuario))
-                        {
-                            Console.WriteLine("Numero invalido, por favor escriba las cuotas nuevamente: ");
-                            Cuotas = Console.ReadLine();
-                        }
-                        miOperatoria.CuotasTarjeta(CuotasUsuario);
-                        miOperatoria.AgregarGasto(GastoUsuario);
-                        Console.WriteLine("Gasto agregado con exito\n");
+                            UsuarioId = usuarioActual.Id,
+                            Descripcion = descGasto,
+                            Monto = montoGasto,
+                            FechaHora = DateTime.Now,
+                            CategoriaId = idCatGasto,
+                            Categoria = catGastos.FirstOrDefault(c => c.Id == idCatGasto)!,
+                            TarjetaCreditoId = tarjetaSel?.Id,
+                            TarjetaCredito = tarjetaSel,
+                            Cuotas = cuotas > 0 ? cuotas : 1
+                        });
                         break;
+
                     case "3":
-                        Console.WriteLine("\nIngresar tarjeta: ");
-                        String Tarjeta = Console.ReadLine();
-                        miOperatoria.AgregarTarjeta(Tarjeta);
+                        miGestor.VerResumen();
                         break;
+
                     case "4":
-                        miOperatoria.VerGastos();
+                        miGestor.VerMovimientosDetallados();
                         break;
+
                     case "5":
-
+                        miGestor.GenerarReportePorCategoria();
                         break;
+
                     case "6":
-                        miOperatoria.DineroRestante();
+                        Console.WriteLine("\nSeleccione la tarjeta a consultar:");
+                        foreach (var t in miGestor.Tarjetas) Console.WriteLine($"{t.Id}. {t.Nombre} {t.Banco}");
+                        Console.Write("ID Tarjeta: ");
+                        if (int.TryParse(Console.ReadLine(), out int tarjId))
+                        {
+                            miGestor.ProyectarResumenTarjeta(tarjId);
+                        }
                         break;
+
                     case "7":
-
-                        break;
-                    case "8":
-
+                        salir = true;
+                        Console.WriteLine("Saliendo del programa...");
                         break;
 
-
+                    default:
+                        Console.WriteLine("Opción inválida.");
+                        break;
                 }
-
-
-
             }
-            while (Opcion !="7");
-
-
-
-
         }
     }
 }
