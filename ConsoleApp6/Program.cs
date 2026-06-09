@@ -7,7 +7,8 @@ namespace ProyectoFinanzas
     {
         static void Main(string[] args)
         {
-            Gestor miGestor = new Gestor();
+            ApplicationDbContext contexto = new ApplicationDbContext();
+            Gestor miGestor = new Gestor(contexto);
             bool salir = false;
 
             Console.WriteLine("Ingrese nombre de usuario: ");

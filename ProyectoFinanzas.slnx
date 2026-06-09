@@ -1,3 +1,5 @@
 <Solution>
   <Project Path="ConsoleApp6/ProyectoFinanzas.csproj" />
+  <Project Path="FinanzasPro.API/FinanzasPro.API.AppHost/FinanzasPro.API.AppHost.csproj" Id="cb665257-f6db-4d7e-9433-acfba7fb271a" />
+  <Project Path="FinanzasPro.API/FinanzasPro.API.Server/FinanzasPro.API.Server.csproj" />
 </Solution>

@@ -1,6 +1,8 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.EntityFrameworkCore;
 
 namespace ProyectoFinanzas
 {
@@ -10,24 +12,40 @@ namespace ProyectoFinanzas
         public List<Ingreso> Ingresos { get; set; } = new List<Ingreso>();
         public List<Categoria> Categorias { get; set; } = new List<Categoria>();
         public List<TarjetaCredito> Tarjetas { get; set; } = new List<TarjetaCredito>();
-        public List<Usuario> Usuarios { get; set; } = new List<Usuario>(); 
+        public List<Usuario> Usuarios { get; set; } = new List<Usuario>();
+
+        // 1. ACÁ DECLARAMOS LA VARIABLE PARA QUE EXISTA EN TODO EL GESTOR
+        private readonly ApplicationDbContext _context;
+
+        // 2. EL CONSTRUCTOR: Es la puerta de entrada. 
+        // Cuando en Program.cs hacés "new Gestor(context)", llega por acá y se guarda en nuestra variable.
+        public Gestor(ApplicationDbContext context)
+        {
+            _context = context;
+        }
         public void AgregarIngreso(Ingreso nuevoIngreso)
         {
-            Ingresos.Add(nuevoIngreso);
+            _context.Ingresos.Add(nuevoIngreso);
+            _context.SaveChanges();
             Console.WriteLine($"\n[+] Ingreso '{nuevoIngreso.Descripcion}' de ${nuevoIngreso.Monto} agregado exitosamente.");
         }
 
         public void AgregarGasto(Gasto nuevoGasto)
         {
-            Gastos.Add(nuevoGasto);
+
+            // PASO 1: Lo metemos en la "sala de espera" de la tabla Gastos
+            _context.Gastos.Add(nuevoGasto);
+
+            // PASO 2: Disparamos el comando SQL (el INSERT) a la base de datos real
+            _context.SaveChanges();
             Console.WriteLine($"\n[-] Gasto '{nuevoGasto.Descripcion}' de ${nuevoGasto.Monto} agregado exitosamente.");
         }
 
         public void VerResumen()
         {
             Console.WriteLine("\n--- RESUMEN FINANCIERO AL " + DateTime.Now.ToString("dd/MM/yyyy HH:mm") + " ---");
-            double totalIngresos = Ingresos.Sum(i => i.Monto);
-            double totalGastos = Gastos.Sum(g => g.Monto);
+            double totalIngresos = _context.Ingresos.Sum(i => i.Monto);
+            double totalGastos = _context.Gastos.Sum(g => g.Monto);
             double saldo = totalIngresos - totalGastos;
 
             Console.WriteLine($"Total Ingresos: ${totalIngresos}");
@@ -38,19 +56,25 @@ namespace ProyectoFinanzas
 
         public void VerMovimientosDetallados()
         {
+            // Trae los ingresos e incluye los datos de su Categoría asociada
+            var listaIngresos = _context.Ingresos.Include(i => i.Categoria).ToList();
             Console.WriteLine("\n--- HISTORIAL DETALLADO ---");
 
             Console.WriteLine("\nINGRESOS:");
-            if (Ingresos.Count == 0) Console.WriteLine("No hay ingresos registrados.");
-            foreach (var ing in Ingresos)
+            if (listaIngresos.Count == 0) Console.WriteLine("No hay ingresos registrados.");
+            foreach (var ing in listaIngresos)
             {
                 string cat = ing.Categoria != null ? ing.Categoria.Nombre : "Sin categoría";
                 Console.WriteLine($"{ing.FechaHora.ToString("dd/MM/yy HH:mm")} | {ing.Descripcion} | +${ing.Monto} | Rubro: {cat}");
             }
-
+            // Trae los gastos, incluye su Categoría y también su Tarjeta de Crédito (si la tiene)
+            var listaGastos = _context.Gastos
+                    .Include(g => g.Categoria)
+                    .Include(g => g.TarjetaCredito)
+                    .ToList();
             Console.WriteLine("\nGASTOS:");
-            if (Gastos.Count == 0) Console.WriteLine("No hay gastos registrados.");
-            foreach (var gasto in Gastos)
+            if (listaGastos.Count == 0) Console.WriteLine("No hay gastos registrados.");
+            foreach (var gasto in listaGastos)
             {
                 string tarjeta = gasto.TarjetaCredito != null ? $"{gasto.TarjetaCredito.Nombre} {gasto.TarjetaCredito.Banco}" : "Efectivo/Débito";
                 string cat = gasto.Categoria != null ? gasto.Categoria.Nombre : "Sin categoría";
@@ -84,6 +108,8 @@ namespace ProyectoFinanzas
             }
             Console.WriteLine("---------------------------------------");
         }
+
+
 
         // --- NUEVA FUNCIONALIDAD 2: PROYECCIÓN DE TARJETA ---
         public void ProyectarResumenTarjeta(int idTarjeta)
